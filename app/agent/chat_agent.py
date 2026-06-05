@@ -1,21 +1,13 @@
 from datetime import datetime
-
-
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langgraph.graph.state import CompiledStateGraph
-
-from mem0 import Memory 
+from mem0 import Memory
 from qdrant_client import QdrantClient
-
 
 from app.agent.langgraph_agent import get_graph, create_initial_state
 from app.core.config import settings
 from app.services.vector_store import MultiTenantVectorStore
-from app.utils.logger import setup_logger
-
-
-from app.agent.langgraph_agent import get_graph, create_initial_state 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -23,23 +15,22 @@ logger = setup_logger(__name__)
 
 class AISupport:
     _instance = None
+
     def __new__(cls, vector_store: MultiTenantVectorStore):
         if cls._instance is None:
-            cls.instance = super(AISupport, cls).__new__(cls)
-            cls.instance._initialized = False
-
+            cls._instance = super(AISupport, cls).__new__(cls)
+            cls._instance._initialized = False
         return cls._instance
-    
 
     def __init__(self, vector_store: MultiTenantVectorStore):
         """
-        Initializer the AI agent with Memory Configuration and LangGraph OpenAI Chat Model
+        Initialize the AI Support with Memory Configuration and Langchain OpenAI Chat Model.
         """
-
-        if not hasattr(self, "_initialized") or not self._initialized:
+        if not hasattr(self, '_initialized') or not self._initialized:
             self._initialized = True
+
         custom_prompt = """
-            Please extract relevant entities containing user information, preferences, context, and important facts that would help personalize future interactions. 
+                Please extract relevant entities containing user information, preferences, context, and important facts that would help personalize future interactions. 
                 Here are some few shot examples:
 
                 Input: Hi.
@@ -48,11 +39,11 @@ class AISupport:
                 Input: The weather is nice today.
                 Output: {{"facts" : []}}
 
-                Input: I'm artificial intellience developer working on Python projects and I prefer using FastAPI.
-                Output: {{"facts" : ["User is a artificial intellience developer", "Works with Python", "Prefers FastAPI framework"]}}
+                Input: I'm a software developer working on Python projects and I prefer using FastAPI.
+                Output: {{"facts" : ["User is a software developer", "Works with Python", "Prefers FastAPI framework"]}}
 
-                Input: My name is Dat, I live in Ho Chi Minh and I'm interested in machine learning.
-                Output: {{"facts" : ["User name: Dat", "Lives in Ho Chi Minh", "Interested in machine learning"]}}
+                Input: My name is John Smith, I live in New York and I'm interested in machine learning.
+                Output: {{"facts" : ["User name: John Smith", "Lives in New York", "Interested in machine learning"]}}
 
                 Input: I usually work late hours and prefer getting notifications in the evening.
                 Output: {{"facts" : ["Works late hours", "Prefers evening notifications"]}}
@@ -70,7 +61,8 @@ class AISupport:
                 Output: {{"facts" : ["Prefers dark mode interfaces", "Uses VS Code editor"]}}
 
                 Return the facts and user information in a json format as shown above.
-        """
+                """
+
         client = QdrantClient(settings.QDRANT_HOST, port=settings.QDRANT_PORT)
 
         config = {
@@ -79,7 +71,7 @@ class AISupport:
                 "config": {
                     "model": "gpt-4.1-mini",
                     "temperature": 0.1,
-                    "max_tokens": 2000,
+                    "max_tokens": 2048,
                     "api_key": settings.OPENAI_API_KEY
                 }
             },
@@ -107,54 +99,54 @@ class AISupport:
         self.__app_id = "AI-general-chatbot"
         self.__vector_store = vector_store
         self.__graph: CompiledStateGraph = get_graph()
-    
-    async def ask(self, question: str, user_id: str, chat_id: str, tenant_id : str)->dict:
-        """
-        Process AI user question and return AI response
 
-        args:
-        question: the user's question
-        user_id: user identifier for personalization 
-        chat_id: Tenant identifier for multi-tenant isolation
+    async def ask(self, question: str, user_id: str, chat_id: str, tenant_id: str) -> dict:
+        """Process a user question and return an AI response.
         
-
-        return:
-            Dictional Containing of AI Response messages
+        Args:
+            question: The user's question
+            user_id: User identifier for personalization
+            chat_id: Chat session identifier
+            tenant_id: Tenant identifier for multi-tenant isolation
+            
+        Returns:
+            Dictionary containing the AI response messages
         """
-        logger.info(f"Self ID {id(self)}")
+        logger.info("Self ID: {}".format(id(self)))
 
-        memories = self.__search_memory(question, user_id = user_id)
-        
+        memories = await self.__search_memory(question, user_id=user_id)
+
         relevant_docs = self.__vector_store.get_chat_by_id(
-            user_id = user_id,
-            chat_id = chat_id,
-            tenant_id = tenant_id
+            chat_id=chat_id, 
+            user_id=user_id, 
+            tenant_id=tenant_id
         )
-        logger.infor(f"Retriever {relevant_docs}:\n")
-        
-        context = "Relevent information by previous convertations\n"
-        if memories["results"]:
-            for memory in memories["results"]:
-                context += f" - {memory['memory']}\n"
+        logger.info(f"Retrieved {relevant_docs}")
 
+        context = "Relevant information from previous conversations:\n"
+        if memories['results']:
+            for memory in memories['results']:
+                context += f" - {memory['memory']}\n"
+        
         if relevant_docs:
-            context += "\n Relevent chat history:\n"
+            context += "\nRelevant chat history:\n"
             for i, doc in enumerate(relevant_docs):
-                question_text += doc.get("user_message", "")
-                answer_text += doc.get("assistant_message", "")
+                question_text = doc.get("user_message", "")
+                answer_text = doc.get("assistant_message", "")
 
                 context += f" - User: {question_text}\n"
-                context += f" - Assistant{answer_text}\n"
+                context += f" - Assistant: {answer_text}\n"
+
 
         thread_id = f"user_{user_id}_chat_{chat_id}"
-        config : RunnableConfig={
-            "configurable":{
+
+        config: RunnableConfig = {
+            "configurable": {
                 "thread_id": thread_id,
                 "user_id": user_id,
                 "chat_id": chat_id
             }
         }
-
         messages = [
             SystemMessage(content=f"""You are a helpful, knowledgeable, and versatile AI assistant designed to provide accurate and thoughtful responses on a wide range of topics.
                 CAPABILITIES:
@@ -179,12 +171,11 @@ class AISupport:
         ]
 
         initial_state = create_initial_state(messages, max_iterations=1)
-        response_state = await self.__graph.ainvoke(initial_state, config = config)
+        response_state = await self.__graph.ainvoke(initial_state, config=config)
 
         response_content = ""
-
         if "direct_response" in response_state:
-            response_content += response_state["direct_response"]
+            response_content = response_state["direct_response"]
             logger.info("Using direct response from supervisor")
         elif "messages" in response_state and response_state["messages"]:
             for msg in reversed(response_state["messages"]):
@@ -192,7 +183,7 @@ class AISupport:
                     response_content = msg.content
                     logger.info(f"Using agent response from {msg.name}")
                     break
-        
+
         await self.__add_memory(question, response_content, user_id=user_id)
 
         self.__vector_store.store_conversation(
@@ -205,6 +196,7 @@ class AISupport:
                 "timestamp": str(datetime.now())
             }
         )
+
         return {"messages": [response_content]}
 
     async def __add_memory(self, question, response, user_id=None):

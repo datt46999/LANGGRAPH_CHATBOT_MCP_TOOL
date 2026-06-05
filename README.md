@@ -93,7 +93,7 @@ Create a `.env` file in the root directory with the following variables:
 
 ```env
 # FastAPI settings
-SECRET_KEY=
+SECRET_KEY=YOUR_SECRET_KEY
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Database settings
@@ -101,23 +101,28 @@ SQLALCHEMY_DATABASE_URI=sqlite:///./app.db
 
 # OpenAI settings
 
-OPENAI_API_KEY=
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 # Qdrant settings
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 
 
-TAVILY_API_KEY=
-FIRECRAWL_API_KEY=
+TAVILY_API_KEY=YOUR_TAVILY_API_KEY
+
+FIRECRAWL_API_KEY=YOUR_FIRECRAWL_API_KEY
+
+
 # LiveKit settings
-LIVEKIT_URL=wss://chat-botagent-hmwkwvkw.livekit.cloud
-LIVEKIT_API_KEY=
-LIVEKIT_API_SECRET=
+LIVEKIT_URL=YOUR_LIVEKIT_URL
+LIVEKIT_API_KEY=YOUR_LIVEKIT_API_KEY
+LIVEKIT_API_SECRET=YOUR_LIVEKIT_API_SECRET
 
 # LangSmith (optional, for tracing)
 LANGSMITH_TRACING=true
 LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
-LANGSMITH_API_KEY=
+LANGSMITH_API_KEY=YOUR_LANGSMITH_API_KEY
+LANGSMITH_PROJECT=YOUR_LANGSMITH_PROJECT
+
 
 ```
 
@@ -142,3 +147,12 @@ python -m app.mcp_server.web_scrapping_server
 # Terminal 3: 
 python app.py
 ```
+
+
+3. Start with Backend:
+
+
+Backend API documentation: http://localhost:8000/docs
+
+### Demo:
+[▶ Watch Demo](DEMO/DEMO_RESULT.webm)

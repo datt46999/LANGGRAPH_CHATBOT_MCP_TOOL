@@ -15,6 +15,7 @@ from app.utils.openai_mapper import create_streaming_openai_chunk
 
 logger = setup_logger(__name__)
 
+
 class StreamingService:
     _instance = None
 
@@ -23,44 +24,44 @@ class StreamingService:
             cls._instance = super(StreamingService, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self, support_agent: AISupport):
         if self._initialized:
             return
-        
         self.support_agent = support_agent
-        self._initialized = False
+        self._initialized = True
 
-    async def stream_chat(self, request: LLMRequest, current_user: User) ->StreamingResponse:
-        try: 
-            async  def generate_stream()->AsyncGenerator[str, None]:
-                first_chunk = await create_streaming_openai_chunk(role = "assistant")
+    async def streaming_chat(self, request: LLMRequest, current_user: User) -> StreamingResponse:
+        try:
+            async def generate_stream() -> AsyncGenerator[str, None]:
+                first_chunk = await create_streaming_openai_chunk(role="assistant")
                 yield f"data: {json.dumps(first_chunk)}\n\n"
 
                 response = await self.support_agent.ask(
-                    question= request.user_message,
-                    user_id= str(current_user.id),
-                    chat_id= request.chat_id,
+                    question=request.user_message,
+                    user_id=str(current_user.id),
+                    chat_id=request.chat_id,
                     tenant_id=current_user.tenant_id
                 )
-
+                
                 if "messages" in response and response["messages"]:
                     full_content = response["messages"][0]
-                    
-                    chunk_size = 10
 
+                    chunk_size = 10
+                    
                     for i in range(0, len(full_content), chunk_size):
                         content_chunk = full_content[i:i+chunk_size]
-                        chunk_data = await create_streaming_openai_chunk(content = content_chunk)
+                        chunk_data = await create_streaming_openai_chunk(content=content_chunk)
                         yield f"data: {json.dumps(chunk_data)}\n\n"
-                final_chunk = await create_streaming_openai_chunk(final_reason= "stop")
+
+                final_chunk = await create_streaming_openai_chunk(finish_reason="stop")
                 yield f"data: {json.dumps(final_chunk)}\n\n"
-                yield f"data [DONE]\n\n"
+                yield "data: [DONE]\n\n"
 
             return StreamingResponse(
-                generate_stream(), 
-                media_type ="text/event-stream",
-                headers = {
+                generate_stream(),
+                media_type="text/event-stream",
+                headers={
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
                 }

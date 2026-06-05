@@ -1,18 +1,18 @@
+from typing import List, Dict, Any, Optional
 
-from typing import Optional, Dict, Any, List
-
+from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
-from langchain_qdrant import QdrantVectorStore
-from langchain_core.documents import Document
 from qdrant_client import QdrantClient, models
-
+from langchain_qdrant import QdrantVectorStore
 
 from app.core.config import settings
 from app.utils.logger import setup_logger
 from app.utils.qdrant import format_chat_results
 
 logger = setup_logger(__name__)
+
+
 class MultiTenantVectorStore:
     """A multi-tenant vector store using Qdrant for efficient semantic search with tenant isolation.
     
@@ -20,21 +20,22 @@ class MultiTenantVectorStore:
     with Qdrant. It uses payload partitioning with tenant_id for data isolation.
     """
     _instance = None
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(MultiTenantVectorStore, cls).__new__(cls)
             cls._instance._initialized = False
-        return cls._instance    
+        return cls._instance
     
-    def __init__(self,
-                collection_name: str = "multi_tenant_chat_history",
-                embedding:Optional[Embeddings] =  OpenAIEmbeddings(
-                    model="text-embedding-3-small",
-                    api_key=settings.OPENAI_API_KEY,
-                    dimensions=768
-                )
-        ):
-
+    def __init__(
+        self,
+        collection_name: str = "multi_tenant_chat_history",
+        embedding: Optional[Embeddings] = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=settings.OPENAI_API_KEY,
+            dimensions=768
+        ),
+    ):
         """Initialize the multi-tenant vector store.
         
         Args:
@@ -43,68 +44,64 @@ class MultiTenantVectorStore:
         """
         if self._initialized:
             return
-        
-        self.client = QdrantClient(settings.QDRANT_HOST, port = settings.QDRANT_PORT)
+        self.client = QdrantClient(settings.QDRANT_HOST, port=settings.QDRANT_PORT)
         self.collection_name = collection_name
-        self.embedding = embedding
         self.embedding_size = 768
+        self.embedding = embedding
+
         self._ensure_collection_exists()
         self._initialized = True
-
-    def _ensure_collection_exists(self)->None:
-        "create collection if it don't exists"
-        collections = self.client.get_collections().collections 
-        collections_names = [collection.name for collection in collections]
         
-        if self.collection_name not in collections_names:
-            logger.info(f"Create new collections {self.collection_name}")
+    def _ensure_collection_exists(self) -> None:
+        """Create the collection if it doesn't exist."""
+        collections = self.client.get_collections().collections
+        collection_names = [collection.name for collection in collections]
+        
+        if self.collection_name not in collection_names:
+            logger.info(f"Creating new collection: {self.collection_name}")
             self.client.create_collection(
-                collection_name = self.collection_name,
-                vector_config = models.VectorParams(
-                    size = self.embedding_size,
-                    distance =models.Distance.COSINE
+                collection_name=self.collection_name,
+                vectors_config=models.VectorParams(
+                    size=self.embedding_size,
+                    distance=models.Distance.COSINE
                 )
             )
         else:
             logger.info(f"Collection {self.collection_name} already exists")
-
-
-    def store_conversation(self,
-                           questions: str,
-                           answers: str,
-                           tenant_id: str,
-                           metadata: Optional[Dict[str, Any]] = None)-> List[str]:
-        
-        """
-        Stone conservation in the vector store with  tenant isolation
-        """
-        doc = Document(
-            page_content = f"User: {questions}\n Assitant: {answers}",
-            metadata = metadata or {}
-        )
-
-        doc.metadata["tenant_id"]= tenant_id
-
-        vectore_store = QdrantVectorStore(
-            client= self.client,
-            collection_name = self.collection_name,
-            embedding = self.embedding
-        )
-        return vectore_store.add_documents([doc])
     
+    def store_conversation(
+        self, 
+        question: str, 
+        answer: str, 
+        tenant_id: str, 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> List[str]:
+        """Store a conversation in the vector store with tenant isolation"""
+        doc = Document(
+            page_content=f"User: {question}\nAssistant: {answer}",
+            metadata=metadata or {}
+        )
 
-    def get_chat_by_user_id(self,
-                            user_id:str,
-                            tenant_id: str,
+        doc.metadata["tenant_id"] = tenant_id
 
-                            limit: int = 100,
-                            offset: int = 0)->List[Dict[str, Any]]:
-        """
-        get all chat messages for a specific user, with pagination
-        """
+        vector_store = QdrantVectorStore(
+            client=self.client,
+            collection_name=self.collection_name,
+            embedding=self.embedding
+        )
 
+        return vector_store.add_documents([doc])
+        
+    def get_chats_by_user_id(
+        self,
+        user_id: str,
+        tenant_id: str,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get all chat messages for a specific user, with pagination"""
         response = self.client.scroll(
-            collection_name = self.collection_name,
+            collection_name=self.collection_name,
             scroll_filter=models.Filter(
                 must=[
                     models.FieldCondition(
@@ -116,23 +113,25 @@ class MultiTenantVectorStore:
                         match=models.MatchValue(value=str(user_id))
                     )
             ]),
-            limit = limit,
-            offset = offset,
-            with_payload = True,
-            with_vectors =False
+            limit=limit,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False
         )
+
         results = format_chat_results(response[0])
-        results.sort(key = lambda x: x.get("timestamp", ""), reverse = True)
+        results.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return results
-    def get_chat_by_id(self,
-                       chat_id:str,
-                       tenant_id:str,
-                       user_id:str,
-                       limit:int = 100,
-                       offset: int =0) -> List[Dict[str, Any]]:
-        """
-        Get all messages for a specific chat ID belonging to a user
-        """
+        
+    def get_chat_by_id(
+        self,
+        chat_id: str,
+        tenant_id: str,
+        user_id: str,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get all messages for a specific chat ID belonging to a user"""
         response = self.client.scroll(
             collection_name=self.collection_name,
             scroll_filter=models.Filter(
@@ -159,4 +158,3 @@ class MultiTenantVectorStore:
         results = format_chat_results(response[0])
         results.sort(key=lambda x: x.get("timestamp", ""))
         return results
-    

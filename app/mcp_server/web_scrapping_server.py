@@ -47,7 +47,7 @@ def run_server(host: str = "127.0.0.1", port: int = 7860, transport: Literal["st
         port: Port number to listen on
         transport: Transport protocol ("sse" or "stdio")
     """
-    logger.info(f"Starting MCP mcp_server on {host}:{port} with {transport} transport...")
+    logger.info(f"Starting MCP mcp_server on {host}:{port} with {transport}")
     mcp.run(transport=transport, host=host, port=port)
 
 
