@@ -2,11 +2,16 @@
 
 
  Implement  AI chatbot platform built with FastAPI and LangGraph, featuring multi-agent orchestration, multi-tenant vector storage, cross-chat memory, and voice call capabilities through LiveKit integration.
-
+# Demo:
+<video
+    src="https://private-user-images.githubusercontent.com/125117718/619458657-6e30c714-b2b0-4b20-83e6-8fe3e5ee1ef1.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODM2MDI5NDMsIm5iZiI6MTc4MzYwMjY0MywicGF0aCI6Ii8xMjUxMTc3MTgvNjE5NDU4NjU3LTZlMzBjNzE0LWIyYjAtNGIyMC04M2U2LThmZTNlNWVlMWVmMS5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNzA5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDcwOVQxMzEwNDNaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT02NWE3MzFkMzdlZGU5OTcwNTdjZTU4NjU2N2I3NTMyMWY1ZjQwOGFlZGY0Y2Q2ZTU2MDEzN2ZmN2I5ZjAwZWVjJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ.e8wXItpNX7M5h4KBjgbNeqhURT5sOdD3hlcTc21m69E"
+    controls
+    width="100%">
+</video>
 
 ## Feature
 
-###  Wrokflow Orchestration with LangGraph
+###  Using Wrokflow Orchestration with LangGraph
 - **Multi-Agent System**: Specialized agents working together to solve complex tasks
   - **Supervisor Agent**: Coordinates workflow and delegates tasks to specialized agents
   - **Research Agent**: Retrieves information from the web and knowledge bases
@@ -125,6 +130,11 @@ LANGSMITH_PROJECT=YOUR_LANGSMITH_PROJECT
 
 
 ```
+## Ensure Qdrant (can be run via Docker): 
+```bash
+# Terminal  
+docker ps
+```
 
 
 ## Running the Application
@@ -147,12 +157,30 @@ python -m app.mcp_server.web_scrapping_server
 # Terminal 3: 
 python app.py
 ```
+3. Start with Voice Assistant via LiveKit
 
+```bash
+# Terminal 4: 
+python app/agent/livekit_agent.py dev
+```
 
-3. Start with Backend:
+ Start with Backend:
+if running in the first time
+```bash
+docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 
-
+sudo docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
+```
 Backend API documentation: http://localhost:8000/docs
 
-### Demo:
-[▶ Watch Demo](DEMO/DEMO_RESULT.webm)
+
+ Start with Frontend:
+ ```bash
+cd frontend
+npm start
+```
+Accessing the Application: 
+  Local:            http://localhost:3000
+  On Your Network:  http://172.16.3.17:3000
+
+
